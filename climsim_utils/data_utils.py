@@ -11,9 +11,12 @@ import copy
 import string
 import h5py
 from tqdm import tqdm
-from typing import Literal
+from typing import Literal, List
+import datetime
 
 MLBackendType = Literal["tensorflow", "pytorch"]
+DataSplit = Literal["train", "val", "scoring", "test"]
+IncludedTensors = Literal["input", "target"]
 
 class data_utils:
     def __init__(self,
@@ -1301,6 +1304,104 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
+    def get_torch_datasets_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, included_tensor_list: List[IncludedTensors] = ["input", "output"], progress_bar: bool = False) -> object:
+        '''
+        This function returns tarjectories of the state vector in time.
+
+        Note: for a cleaner implementation, one would probably change the structure of the data_utils class.
+        However, creating this specific function ensures that other parts of the code are not affected.
+        '''
+
+        assert self.ml_backend == 'pytorch', 'This function is only available for pytorch backend.'
+        assert data_split in ['train', 'val', 'scoring', 'test'], 'Provided data_split is not valid. Available options are train, val, scoring, and test.'
+
+        # Note that seconds between each file is 1200
+        SECONDS_BETWEEN_FILES = 1200
+
+        filelist = self.get_filelist(data_split)
+
+        # Compile list of data and time.
+        trajectories = []
+        intermediate_list = []
+
+        number_of_contiguous_items = 0
+
+        for i, file in enumerate(tqdm(filelist, disable = not progress_bar, desc=f'Loading {data_split} data')):
+        
+            unix_time_of_file = self.convert_file_to_unix_time(file)
+
+            if i == 0:
+                previous_time = unix_time_of_file - SECONDS_BETWEEN_FILES
+
+            # Get the data
+
+            ds_input = self.get_input(file)
+            ds_target = self.get_target(file)
+            
+            # normalization, scaling
+            if self.normalize:
+                ds_input = (ds_input - self.input_mean)/(self.input_max - self.input_min)
+                ds_target = ds_target*self.output_scale
+            else:
+                ds_input = ds_input.drop(['lat','lon'])
+
+            # stack
+            ds_input = ds_input.stack({'batch':{'ncol'}})
+            ds_input = ds_input.to_stacked_array('mlvar', sample_dims=['batch'], name='mli')
+            ds_target = ds_target.stack({'batch':{'ncol'}})
+            ds_target = ds_target.to_stacked_array('mlvar', sample_dims=['batch'], name='mlo')
+
+            contiguous_items += 1
+
+            if number_of_contiguous_items == length_of_trajectories:
+                
+                intermediate_list_as_torch_tensor = self.torch.tensor(intermediate_list)
+                trajectories.append(intermediate_list_as_torch_tensor)
+
+                intermediate_list = []
+                number_of_contiguous_items = 0
+            elif previous_time + SECONDS_BETWEEN_FILES == unix_time_of_file:
+                
+                ds_input_tensor = None
+                ds_target_tensor = None
+
+                if 'input' in included_tensor_list:
+                    ds_input_tensor = self.torch.tensor(ds_input)
+                
+                if 'output' in included_tensor_list:
+                    ds_target_tensor = self.torch.tensor(ds_target)
+                
+                if 'input' in included_tensor_list and 'output' in included_tensor_list:
+                    intermediate_list.append((ds_input_tensor, ds_target_tensor))
+                elif 'input' in included_tensor_list:
+                    intermediate_list.append(ds_input_tensor)
+                elif 'output' in included_tensor_list:
+                    intermediate_list.append(ds_target_tensor)
+                else:
+                    raise ValueError('included_tensor_list must contain either "input", "output", or both.')
+
+                intermediate_list.append((ds_input_tensor, ds_target_tensor))
+                number_of_contiguous_items += 1
+                previous_time = unix_time_of_file
+            else:
+                intermediate_list = []
+                number_of_contiguous_items = 0
+
+        # Instantiate a pytorch dataset
+        class TrajectoryDataset(self.torch.utils.data.Dataset):
+            def __init__(self, trajectories):
+                self.trajectories = trajectories
+
+            def __len__(self):
+                return len(self.trajectories)
+
+            def __getitem__(self, idx):
+                return self.trajectories[idx]
+
+        trajectory_dataset = TrajectoryDataset(trajectories)
+
+        return trajectory_dataset
+
     @staticmethod
     def reshape_input_for_cnn(npy_input, save_path = ''):
         '''
@@ -1371,3 +1472,23 @@ class data_utils:
             with open(save_path + 'cnn_predict_reshaped.npy', 'wb') as f:
                 np.save(f, np.float32(npy_predict_cnn_reshaped))
         return npy_predict_cnn_reshaped
+
+    @staticmethod
+    def convert_file_to_unix_time(file):
+        """
+        Converts file name to unix time using the datetime library.
+
+        Note: if needed, can rewritten without datetime.
+        """
+        match = re.match(r"^E3SM-MMF\.(mli|mlo)\.(\d{4})-(\d{2})-(\d{2})-(\d+)$", file)
+
+        year = match.group(1)
+        month = match.group(2)
+        day = match.group(3)
+        seconds_since_start = int(match.group(4))
+
+        dt_object = datetime.datetime(int(year), int(month), int(day), 0, 0) + datetime.timedelta(seconds=seconds_since_start)
+        unix_time = int(dt_object.timestamp())
+
+        # Convert to datetime object so that we can sort by time
+        return unix_time
