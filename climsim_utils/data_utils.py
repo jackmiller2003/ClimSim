@@ -1304,7 +1304,7 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
-    def get_torch_datasets_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, included_tensor_list: List[IncludedTensors] = ["input", "output"], progress_bar: bool = False) -> object:
+    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, included_tensor_list: List[IncludedTensors] = ["input", "output"], progress_bar: bool = False) -> object:
         '''
         This function returns tarjectories of the state vector in time.
 
