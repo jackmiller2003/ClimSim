@@ -52,17 +52,18 @@ if __name__ == "__main__":
     grid_path = args.grid_path
     norm_path = args.norm_path
     train_filelist_directory = args.train_filelist_directory
-    numpy_save_directory = args.numpy_save_directory
     ml_backend = "pytorch"
 
     logging.info(f"Testing {ml_backend} backend")
 
     data = setup_data_utils(grid_path=grid_path, norm_path=norm_path, train_filelist_directory=train_filelist_directory, ml_backend=ml_backend)
 
-    trajectory_dataset = data.get_torch_dataset_of_trajectories_in_time(length_of_trajectories=2, data_split="train", included_tensor_list=["input", "target"])
-    dataset_as_list = list(trajectory_dataset)
+    trajectory_dataset = data.get_iterable_torch_dataset_of_trajectories_in_time(length_of_trajectories=2, data_split="train")
+    trajectory_dataset_as_list = list(trajectory_dataset)
 
-    input_example, target_example = dataset_as_list[0][0]
+    input_example, target_example = trajectory_dataset_as_list[0][0]
+
+    logging.info(f"Trajectory dataset has length: {len(trajectory_dataset_as_list)}")
 
     logging.info(f"{ml_backend} input shape: {input_example.shape}")
     logging.info(f"{ml_backend} target shape: {target_example.shape}")
