@@ -1425,8 +1425,12 @@ class data_utils:
                     this_self._setup_data()
                 
                 def __len__(this_self):
-                    if data_split == 'train':
-                        return this_self.input_tensors.shape[0]
+                    if this_self.input_tensors is not None:
+                        return len(this_self.input_tensors)
+                    elif this_self.target_tensors is not None:
+                        return len(this_self.target_tensors)
+                    else:
+                        raise ValueError("No data available to determine length of dataset.")
 
                 def _setup_data(this_self):
                     """
