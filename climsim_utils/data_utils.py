@@ -1387,23 +1387,23 @@ class data_utils:
         # Check if we have the correct data in NumPy form to forgoe the need to load the netCDF files
         if input_needed:
             if data_split == 'train':
-                input_numpy_data_exists = self.npy_input_train is not None
+                input_numpy_data_exists = self.input_train_npy is not None
             elif data_split == 'val':
-                input_numpy_data_exists = self.npy_input_val is not None
+                input_numpy_data_exists = self.input_val_npy is not None
             elif data_split == 'scoring':
-                input_numpy_data_exists = self.npy_input_scoring is not None
+                input_numpy_data_exists = self.input_scoring_npy is not None
             elif data_split == 'test':
-                input_numpy_data_exists = self.npy_input_test is not None
+                input_numpy_data_exists = self.input_test_npy is not None
         
         if target_needed:
             if data_split == 'train':
-                target_numpy_data_exists = self.npy_target_train is not None
+                target_numpy_data_exists = self.target_train_npy is not None
             elif data_split == 'val':
-                target_numpy_data_exists = self.npy_target_val is not None
+                target_numpy_data_exists = self.target_val_npy is not None
             elif data_split == 'scoring':
-                target_numpy_data_exists = self.npy_target_scoring is not None
+                target_numpy_data_exists = self.target_scoring_npy is not None
             elif data_split == 'test':
-                target_numpy_data_exists = self.npy_target_test is not None
+                target_numpy_data_exists = self.target_test_npy is not None
 
         requisite_numpy_data_exists = (not (input_numpy_data_exists ^ target_needed)) and (not (target_numpy_data_exists ^ input_needed))
 
