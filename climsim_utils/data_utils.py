@@ -1417,12 +1417,13 @@ class data_utils:
                 raise NotImplementedError("Only low_res_from_paper dataset is implemented for numpy data.")
 
             class TrajectoryDataset(self.torch.utils.data.Dataset):
-                def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
+                def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
                     super().__init__()
                     this_self.outer_self = outer_self
                     this_self.length_of_trajectories = length_of_trajectories
                     this_self.input_needed = input_needed
                     this_self.target_needed = target_needed
+                    this_self.data_split = data_split
                     this_self.npy_input = npy_input
                     this_self.npy_target = npy_target
                     this_self.latlontime_dict = latlontime_dict
@@ -1449,10 +1450,12 @@ class data_utils:
                     NUMTIMESTEPS_IN_TRAINING = 26280
                     NUMTIMESTEPS_IN_VALIDATION = 3755     
 
-                    if this_self.outer_self.data_split == "train":
+                    if this_self.data_split == "train":
                         number_of_timesteps = NUMTIMESTEPS_IN_TRAINING
-                    elif this_self.outer_self.data_split == "val":
+                    elif this_self.data_split == "val":
                         number_of_timesteps = NUMTIMESTEPS_IN_VALIDATION
+                    else:
+                        raise NotImplementedError("Only train and val data splits are implemented for numpy data.")
 
                     this_self.input_tensors = None
                     this_self.target_tensors = None
@@ -1485,13 +1488,13 @@ class data_utils:
                         return this_self.input_tensors[idx]
         
             if data_split == "train":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_train_npy, npy_target=self.target_train_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_train_npy, npy_target=self.target_train_npy)
             elif data_split == "val":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_val_npy, npy_target=self.target_val_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_val_npy, npy_target=self.target_val_npy)
             elif data_split == "scoring":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_scoring_npy, npy_target=self.target_scoring_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_scoring_npy, npy_target=self.target_scoring_npy)
             elif data_split == "test":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_test_npy, npy_target=self.target_test_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_test_npy, npy_target=self.target_test_npy)
 
         else:
             class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
