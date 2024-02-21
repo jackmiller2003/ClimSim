@@ -1406,9 +1406,12 @@ class data_utils:
             elif data_split == 'test':
                 target_numpy_data_exists = self.target_test_npy is not None
 
-        requisite_numpy_data_exists = (not (input_numpy_data_exists ^ target_needed)) and (not (target_numpy_data_exists ^ input_needed))
-
-        print(f"input_numpy_data_exists: {input_numpy_data_exists}")
+        if input_needed and target_needed:
+            requisite_numpy_data_exists = input_numpy_data_exists and target_numpy_data_exists
+        elif input_needed:
+            requisite_numpy_data_exists = input_numpy_data_exists
+        elif target_needed:
+            requisite_numpy_data_exists = target_numpy_data_exists
 
         # If numpy data is available, we will default to using that
         if (not prefer_iterable) and requisite_numpy_data_exists:
