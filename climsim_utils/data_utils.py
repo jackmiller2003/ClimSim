@@ -1452,7 +1452,14 @@ class data_utils:
                     elif this_self.npy_input is not None:
                         return this_self.input_tensors[idx]
         
-            return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.npy_input_train, npy_target=self.npy_target_train)
+            if data_split == "train":
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_train_npy, npy_target=self.npy_target_train)
+            elif data_split == "val":
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_val_npy, npy_target=self.npy_target_val)
+            elif data_split == "scoring":
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_scoring_npy, npy_target=self.npy_target_scoring)
+            elif data_split == "test":
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_test_npy, npy_target=self.npy_target_test)
 
         else:
             class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
