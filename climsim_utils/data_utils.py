@@ -1373,7 +1373,7 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
-    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, flatten: bool = True, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
+    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, flatten: bool = True, subset_of_train_features: list = None, subset_of_target_features: list = None, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
         assert self.ml_backend == 'pytorch', 'This method is only available for pytorch backend.'
         assert data_split in ['train', 'val', 'scoring', 'test'], 'Provided data_split is not valid. Available options are train, val, scoring, and test.'
 
@@ -1501,15 +1501,15 @@ class data_utils:
                         return this_self.input_tensors[idx], this_self.target_tensors[idx]
                     elif this_self.npy_input is not None:
                         return this_self.input_tensors[idx]
-        
+    
             if data_split == "train":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_train_npy, npy_target=self.target_train_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_train_features=subset_of_train_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_train_npy, npy_target=self.target_train_npy)
             elif data_split == "val":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_val_npy, npy_target=self.target_val_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_train_features=subset_of_train_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_val_npy, npy_target=self.target_val_npy)
             elif data_split == "scoring":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_scoring_npy, npy_target=self.target_scoring_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_train_features=subset_of_train_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_scoring_npy, npy_target=self.target_scoring_npy)
             elif data_split == "test":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, npy_input=self.input_test_npy, npy_target=self.target_test_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_train_features=subset_of_train_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_test_npy, npy_target=self.target_test_npy)
 
         else:
             class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
