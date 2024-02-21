@@ -1500,10 +1500,12 @@ class data_utils:
                         raise NotImplementedError("latlontime_dict is not implemented yet.")
                 
                 def __getitem__(this_self, idx):
-                    if this_self.npy_input is not None and this_self.npy_target is not None:
+                    if this_self.input_needed and this_self.target_needed:
                         return this_self.input_tensors[idx], this_self.target_tensors[idx]
-                    elif this_self.npy_input is not None:
+                    elif this_self.input_needed:
                         return this_self.input_tensors[idx]
+                    elif this_self.target_needed:
+                        return this_self.target_tensors[idx]
     
             if data_split == "train":
                 return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_train_features=subset_of_train_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_train_npy, npy_target=self.target_train_npy)
