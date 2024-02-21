@@ -1455,13 +1455,13 @@ class data_utils:
                         return this_self.input_tensors[idx]
         
             if data_split == "train":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_train_npy, npy_target=self.npy_target_train)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_train_npy, npy_target=self.target_train_npy)
             elif data_split == "val":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_val_npy, npy_target=self.npy_target_val)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_val_npy, npy_target=self.target_val_npy)
             elif data_split == "scoring":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_scoring_npy, npy_target=self.npy_target_scoring)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_scoring_npy, npy_target=self.target_scoring_npy)
             elif data_split == "test":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_test_npy, npy_target=self.npy_target_test)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.input_test_npy, npy_target=self.target_test_npy)
 
         else:
             class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
