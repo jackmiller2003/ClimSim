@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import pickle
 import glob, os
 import re
-import tensorflow as tf
 import netCDF4
 import copy
 import string
@@ -13,6 +12,8 @@ import h5py
 from tqdm import tqdm
 from typing import Literal, List
 import datetime
+from pathlib import Path
+import warnings
 
 MLBackendType = Literal["tensorflow", "pytorch"]
 DataSplit = Literal["train", "val", "scoring", "test"]
@@ -327,6 +328,23 @@ class data_utils:
                            '#D55E00'
                            ]
 
+        # For dealing with npy loading. Added these as they prevent offsite impacts on other
+        # places the variables like input_train are used.
+
+        self.input_train_npy = None
+        self.target_train_npy = None
+        self.input_val_npy = None
+        self.target_val_npy = None
+        self.input_scoring_npy = None
+        self.target_scoring_npy = None
+        self.input_test_npy = None
+        self.target_test_npy = None
+
+        self.train_latlontime_dict = None
+        self.val_latlontime_dict = None
+        self.scoring_latlontime_dict = None
+        self.test_latlontime_dict = None
+
     def set_to_v1_vars(self):
         '''
         This function sets the inputs and outputs to the V1 subset.
@@ -595,6 +613,56 @@ class data_utils:
             with open(save_path + data_split + '_indextolatlontime.pkl', 'wb') as f:
                 pickle.dump(latlontime, f)
     
+    def load_npy_data(self, load_path: Path) -> None:
+        """
+        Loads NumPy data from the folder in which it was saved using the function save_as_npy.
+
+        Will fill in what is available in the path.
+        """
+
+        # Check if the path is a directory.
+        if load_path.is_dir():
+            # Get all the files in the directory.
+            files = list(load_path.iterdir())
+
+            # Check if the files are available.
+            if "train_input.npy" in files:
+                with open(load_path / "train_input.npy", "rb") as f:
+                    self.input_train_npy = np.load(f)
+            if "train_target.npy" in files:
+                with open(load_path / "train_target.npy", "rb") as f:
+                    self.target_train_npy = np.load(f)
+            if "val_input.npy" in files:
+                with open(load_path / "val_input.npy", "rb") as f:
+                    self.input_val_npy = np.load(f)
+            if "val_target.npy" in files:
+                with open(load_path / "val_target.npy", "rb") as f:
+                    self.target_val_npy = np.load(f)
+            if "scoring_input.npy" in files:
+                with open(load_path / "scoring_input.npy", "rb") as f:
+                    self.input_scoring_npy = np.load(f)
+            if "scoring_target.npy" in files:
+                with open(load_path / "scoring_target.npy", "rb") as f:
+                    self.target_scoring_npy = np.load(f)
+            if "test_input.npy" in files:
+                with open(load_path / "test_input.npy", "rb") as f:
+                    self.input_test_npy = np.load(f)
+            if "test_target.npy" in files:
+                with open(load_path / "test_target.npy", "rb") as f:
+                    self.target_test_npy = np.load(f)
+            if "train_indextolatlontime.pkl" in files:
+                with open(load_path / "train_indextolatlontime.pkl", "rb") as f:
+                    self.train_latlontime_dict = pickle.load(f)
+            if "val_indextolatlontime.pkl" in files:
+                with open(load_path / "val_indextolatlontime.pkl", "rb") as f:
+                    self.val_latlontime_dict = pickle.load(f)
+            if "scoring_indextolatlontime.pkl" in files:
+                with open(load_path / "scoring_indextolatlontime.pkl", "rb") as f:
+                    self.scoring_latlontime_dict = pickle.load(f)
+            if "test_indextolatlontime.pkl" in files:
+                with open(load_path / "test_indextolatlontime.pkl", "rb") as f:
+                    self.test_latlontime_dict = pickle.load(f)
+            
     def reshape_npy(self, var_arr, var_arr_dim):
         '''
         This function reshapes the a variable in numpy such that time gets its own axis (instead of being num_samples x num_levels).
@@ -1304,67 +1372,148 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
-    def get_iterable_torch_dataset_of_trajectories_in_time(self, length_of_trajectories, data_split, included_tensor_list=["input", "target"], progress_bar=False):
+    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
         assert self.ml_backend == 'pytorch', 'This method is only available for pytorch backend.'
         assert data_split in ['train', 'val', 'scoring', 'test'], 'Provided data_split is not valid. Available options are train, val, scoring, and test.'
 
-        class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
-            def __init__(this_self, outer_self):
-                super().__init__()
-                this_self.outer_self = outer_self
+        input_needed = "input" in included_tensor_list
+        target_needed = "target" in included_tensor_list
 
-            def __iter__(this_self):
-                filelist = this_self.outer_self.get_filelist(data_split)
-                SECONDS_BETWEEN_FILES = 1200
-                intermediate_list = []
-                input_included = "input" in included_tensor_list
-                target_included = "target" in included_tensor_list
-                reset_counting = True
-                previous_time = None
+        input_numpy_data_exists = False
+        target_numpy_data_exists = False
 
-                for file in tqdm(filelist, disable=not progress_bar, desc=f'Loading {data_split} data'):
-                    unix_time_of_file = this_self.outer_self.convert_file_to_unix_time(file)
+        requisite_numpy_data_exists = False
 
-                    if reset_counting or previous_time is None:
-                        previous_time = unix_time_of_file - SECONDS_BETWEEN_FILES
+        # Check if we have the correct data in NumPy form to forgoe the need to load the netCDF files
+        if input_needed:
+            if data_split == 'train':
+                input_numpy_data_exists = self.npy_input_train is not None
+            elif data_split == 'val':
+                input_numpy_data_exists = self.npy_input_val is not None
+            elif data_split == 'scoring':
+                input_numpy_data_exists = self.npy_input_scoring is not None
+            elif data_split == 'test':
+                input_numpy_data_exists = self.npy_input_test is not None
+        
+        if target_needed:
+            if data_split == 'train':
+                target_numpy_data_exists = self.npy_target_train is not None
+            elif data_split == 'val':
+                target_numpy_data_exists = self.npy_target_val is not None
+            elif data_split == 'scoring':
+                target_numpy_data_exists = self.npy_target_scoring is not None
+            elif data_split == 'test':
+                target_numpy_data_exists = self.npy_target_test is not None
 
-                    ds_input = this_self.outer_self.get_input(file)
-                    ds_target = this_self.outer_self.get_target(file)
+        requisite_numpy_data_exists = (not (input_numpy_data_exists ^ target_needed)) and (not (target_numpy_data_exists ^ input_needed))
 
-                    if this_self.outer_self.normalize:
-                        ds_input = (ds_input - this_self.outer_self.input_mean) / (this_self.outer_self.input_max - this_self.outer_self.input_min)
-                        ds_target = ds_target * this_self.outer_self.output_scale
+        # If numpy data is available, we will default to using that
+        if (not prefer_iterable) and requisite_numpy_data_exists:
+            class TrajectoryDataset(self.torch.utils.data.Dataset):
+                def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
+                    super().__init__()
+                    this_self.outer_self = outer_self
+                    this_self.length_of_trajectories = length_of_trajectories
+                    this_self.input_needed = input_needed
+                    this_self.target_needed = target_needed
+                    this_self.npy_input = npy_input
+                    this_self.npy_target = npy_target
+                    this_self.latlontime_dict = latlontime_dict
+
+                    this_self._setup_data()
+                
+                def __len__(this_self):
+                    if data_split == 'train':
+                        return this_self.input_tensors.shape[0]
+
+                def _setup_data(this_self):
+                    """
+                    Constructs the dataset by finding tarjectories of the certain length using the saved numpy data and dictionary.
+                    """
+
+                    this_self.input_tensors = None
+                    this_self.target_tensors = None
+
+                    if this_self.latlontime_dict is None:
+                        warnings.warn("No latlontime_dict provided. Assuming that the data has temporal ordering with the same interval between examples.")
+
+                        if this_self.npy_input is not None:
+                            this_self.input_tensors = [this_self.outer_self.torch.tensor(this_self.npy_input[i:i + this_self.length_of_trajectories]) for i in range(0, len(this_self.npy_input), this_self.length_of_trajectories)]
+                        
+                        if this_self.npy_target is not None:
+                            this_self.target_tensors = [this_self.outer_self.torch.tensor(this_self.npy_target[i:i + this_self.length_of_trajectories]) for i in range(0, len(this_self.npy_target), this_self.length_of_trajectories)]
+                    
                     else:
-                        ds_input = ds_input.drop(['lat', 'lon'])
+                        raise NotImplementedError("latlontime_dict is not implemented yet.")
+                
+                def __getitem__(this_self, idx):
+                    if this_self.npy_input is not None and this_self.npy_target is not None:
+                        return this_self.input_tensors[idx], this_self.target_tensors[idx]
+                    elif this_self.npy_input is not None:
+                        return this_self.input_tensors[idx]
+        
+            return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, npy_input=self.npy_input_train, npy_target=self.npy_target_train)
 
-                    ds_input = ds_input.stack({'batch': {'ncol'}}).to_stacked_array('mlvar', sample_dims=['batch'], name='mli')
-                    ds_target = ds_target.stack({'batch': {'ncol'}}).to_stacked_array('mlvar', sample_dims=['batch'], name='mlo')
+        else:
+            class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
+                def __init__(this_self, outer_self, data_split: DataSplit, included_tensor_list: IncludedTensors):
+                    super().__init__()
+                    this_self.outer_self = outer_self
+                    this_self.data_split = data_split
+                    this_self.included_tensor_list = included_tensor_list
 
-                    if previous_time + SECONDS_BETWEEN_FILES == unix_time_of_file or reset_counting:
-                        if input_included:
-                            ds_input_tensor = this_self.outer_self.torch.tensor(ds_input.values)
-                        if target_included:
-                            ds_target_tensor = this_self.outer_self.torch.tensor(ds_target.values)
+                def __iter__(this_self):
+                    filelist = this_self.outer_self.get_filelist(this_self.data_split)
+                    SECONDS_BETWEEN_FILES = 1200
+                    intermediate_list = []
+                    input_included = "input" in this_self.included_tensor_list
+                    target_included = "target" in this_self.included_tensor_list
+                    reset_counting = True
+                    previous_time = None
 
-                        if input_included and target_included:
-                            intermediate_list.append((ds_input_tensor, ds_target_tensor))
-                        elif input_included:
-                            intermediate_list.append(ds_input_tensor)
-                        elif target_included:
-                            intermediate_list.append(ds_target_tensor)
+                    for file in tqdm(filelist, disable=not progress_bar, desc=f'Loading {this_self.data_split} data'):
+                        unix_time_of_file = this_self.outer_self.convert_file_to_unix_time(file)
 
-                        if len(intermediate_list) == length_of_trajectories:
-                            yield intermediate_list
+                        if reset_counting or previous_time is None:
+                            previous_time = unix_time_of_file - SECONDS_BETWEEN_FILES
+
+                        ds_input = this_self.outer_self.get_input(file)
+                        ds_target = this_self.outer_self.get_target(file)
+
+                        if this_self.outer_self.normalize:
+                            ds_input = (ds_input - this_self.outer_self.input_mean) / (this_self.outer_self.input_max - this_self.outer_self.input_min)
+                            ds_target = ds_target * this_self.outer_self.output_scale
+                        else:
+                            ds_input = ds_input.drop(['lat', 'lon'])
+
+                        ds_input = ds_input.stack({'batch': {'ncol'}}).to_stacked_array('mlvar', sample_dims=['batch'], name='mli')
+                        ds_target = ds_target.stack({'batch': {'ncol'}}).to_stacked_array('mlvar', sample_dims=['batch'], name='mlo')
+
+                        if previous_time + SECONDS_BETWEEN_FILES == unix_time_of_file or reset_counting:
+                            if input_included:
+                                ds_input_tensor = this_self.outer_self.torch.tensor(ds_input.values)
+                            if target_included:
+                                ds_target_tensor = this_self.outer_self.torch.tensor(ds_target.values)
+
+                            if input_included and target_included:
+                                intermediate_list.append((ds_input_tensor, ds_target_tensor))
+                            elif input_included:
+                                intermediate_list.append(ds_input_tensor)
+                            elif target_included:
+                                intermediate_list.append(ds_target_tensor)
+
+                            if len(intermediate_list) == length_of_trajectories:
+                                yield intermediate_list
+                                intermediate_list = []
+                                reset_counting = True
+                            else:
+                                reset_counting = False
+                                previous_time = unix_time_of_file
+                        else:
                             intermediate_list = []
                             reset_counting = True
-                        else:
-                            reset_counting = False
-                            previous_time = unix_time_of_file
-                    else:
-                        intermediate_list = []
-                        reset_counting = True
 
-        return IterableTrajectoryDataset(self)
+            return IterableTrajectoryDataset(self)
 
     @staticmethod
     def reshape_input_for_cnn(npy_input, save_path = ''):
