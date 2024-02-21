@@ -1485,7 +1485,7 @@ class data_utils:
                             else:
                                 npy_input_time_first = this_self.npy_input.reshape(number_of_timesteps, NUMGRIDCOLS, NUM_FEATURS_IN_INPUT)
 
-                            this_self.input_tensors = [torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first), this_self.length_of_trajectories)]
+                            this_self.input_tensors = [torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
                         
                         if this_self.npy_target is not None:
 
@@ -1498,7 +1498,7 @@ class data_utils:
                             else:
                                 npy_target_time_first = this_self.npy_target.reshape(number_of_timesteps, NUMGRIDCOLS, NUM_FEATURES_IN_TARGET)
 
-                            this_self.target_tensors = [torch.tensor(npy_target_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_target_time_first), this_self.length_of_trajectories)]
+                            this_self.target_tensors = [torch.tensor(npy_target_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_target_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
                     
                     else:
                         raise NotImplementedError("latlontime_dict is not implemented yet.")
