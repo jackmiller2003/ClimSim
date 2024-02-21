@@ -1445,7 +1445,14 @@ class data_utils:
                     NUM_FEATURS_IN_INPUT = 124
                     NUM_FEATURES_IN_TARGET = 128
                     NUMGRIDCOLS = 384
-                    NUMTIMESTEPS = 26280
+                    
+                    NUMTIMESTEPS_IN_TRAINING = 26280
+                    NUMTIMESTEPS_IN_VALIDATION = 3755     
+
+                    if this_self.outer_self.data_split == "train":
+                        number_of_timesteps = NUMTIMESTEPS_IN_TRAINING
+                    elif this_self.outer_self.data_split == "val":
+                        number_of_timesteps = NUMTIMESTEPS_IN_VALIDATION
 
                     this_self.input_tensors = None
                     this_self.target_tensors = None
@@ -1457,14 +1464,14 @@ class data_utils:
                         if this_self.npy_input is not None:
                             
                             # Resahpe so that first dimension is time
-                            npy_input_time_first = this_self.npy_input.reshape(NUMTIMESTEPS, NUMGRIDCOLS, NUM_FEATURS_IN_INPUT)
+                            npy_input_time_first = this_self.npy_input.reshape(number_of_timesteps, NUMGRIDCOLS, NUM_FEATURS_IN_INPUT)
 
                             this_self.input_tensors = [this_self.outer_self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first), this_self.length_of_trajectories)]
                         
                         if this_self.npy_target is not None:
 
                             # Reshape so that first dimension is time
-                            npy_input_time_first = this_self.npy_target.reshape(NUMTIMESTEPS, NUMGRIDCOLS, NUM_FEATURES_IN_TARGET)
+                            npy_input_time_first = this_self.npy_target.reshape(number_of_timesteps, NUMGRIDCOLS, NUM_FEATURES_IN_TARGET)
 
                             this_self.target_tensors = [this_self.outer_self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first), this_self.length_of_trajectories)]
                     
