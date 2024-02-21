@@ -623,43 +623,43 @@ class data_utils:
         # Check if the path is a directory.
         if load_path.is_dir():
             # Get all the files in the directory.
-            files = list(load_path.iterdir())
+            file_names = [file.name for file in load_path.iterdir()]
 
             # Check if the files are available.
-            if "train_input.npy" in files:
+            if "train_input.npy" in file_names:
                 with open(load_path / "train_input.npy", "rb") as f:
                     self.input_train_npy = np.load(f)
-            if "train_target.npy" in files:
+            if "train_target.npy" in file_names:
                 with open(load_path / "train_target.npy", "rb") as f:
                     self.target_train_npy = np.load(f)
-            if "val_input.npy" in files:
+            if "val_input.npy" in file_names:
                 with open(load_path / "val_input.npy", "rb") as f:
                     self.input_val_npy = np.load(f)
-            if "val_target.npy" in files:
+            if "val_target.npy" in file_names:
                 with open(load_path / "val_target.npy", "rb") as f:
                     self.target_val_npy = np.load(f)
-            if "scoring_input.npy" in files:
+            if "scoring_input.npy" in file_names:
                 with open(load_path / "scoring_input.npy", "rb") as f:
                     self.input_scoring_npy = np.load(f)
-            if "scoring_target.npy" in files:
+            if "scoring_target.npy" in file_names:
                 with open(load_path / "scoring_target.npy", "rb") as f:
                     self.target_scoring_npy = np.load(f)
-            if "test_input.npy" in files:
+            if "test_input.npy" in file_names:
                 with open(load_path / "test_input.npy", "rb") as f:
                     self.input_test_npy = np.load(f)
-            if "test_target.npy" in files:
+            if "test_target.npy" in file_names:
                 with open(load_path / "test_target.npy", "rb") as f:
                     self.target_test_npy = np.load(f)
-            if "train_indextolatlontime.pkl" in files:
+            if "train_indextolatlontime.pkl" in file_names:
                 with open(load_path / "train_indextolatlontime.pkl", "rb") as f:
                     self.train_latlontime_dict = pickle.load(f)
-            if "val_indextolatlontime.pkl" in files:
+            if "val_indextolatlontime.pkl" in file_names:
                 with open(load_path / "val_indextolatlontime.pkl", "rb") as f:
                     self.val_latlontime_dict = pickle.load(f)
-            if "scoring_indextolatlontime.pkl" in files:
+            if "scoring_indextolatlontime.pkl" in file_names:
                 with open(load_path / "scoring_indextolatlontime.pkl", "rb") as f:
                     self.scoring_latlontime_dict = pickle.load(f)
-            if "test_indextolatlontime.pkl" in files:
+            if "test_indextolatlontime.pkl" in file_names:
                 with open(load_path / "test_indextolatlontime.pkl", "rb") as f:
                     self.test_latlontime_dict = pickle.load(f)
             
@@ -1406,6 +1406,8 @@ class data_utils:
                 target_numpy_data_exists = self.target_test_npy is not None
 
         requisite_numpy_data_exists = (not (input_numpy_data_exists ^ target_needed)) and (not (target_numpy_data_exists ^ input_needed))
+
+        print(f"input_numpy_data_exists: {input_numpy_data_exists}")
 
         # If numpy data is available, we will default to using that
         if (not prefer_iterable) and requisite_numpy_data_exists:
