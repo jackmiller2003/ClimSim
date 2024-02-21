@@ -18,6 +18,7 @@ import warnings
 MLBackendType = Literal["tensorflow", "pytorch"]
 DataSplit = Literal["train", "val", "scoring", "test"]
 IncludedTensors = Literal["input", "target"]
+DatasetName = Literal["high_res", "low_res", "aqua_planet", "low_res_from_paper"]
 
 class data_utils:
     def __init__(self,
@@ -1372,7 +1373,7 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
-    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
+    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
         assert self.ml_backend == 'pytorch', 'This method is only available for pytorch backend.'
         assert data_split in ['train', 'val', 'scoring', 'test'], 'Provided data_split is not valid. Available options are train, val, scoring, and test.'
 
@@ -1411,6 +1412,10 @@ class data_utils:
 
         # If numpy data is available, we will default to using that
         if (not prefer_iterable) and requisite_numpy_data_exists:
+            
+            if dataset_name != "low_res_from_paper":
+                raise NotImplementedError("Only low_res_from_paper dataset is implemented for numpy data.")
+
             class TrajectoryDataset(self.torch.utils.data.Dataset):
                 def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
                     super().__init__()
@@ -1437,17 +1442,31 @@ class data_utils:
                     Constructs the dataset by finding tarjectories of the certain length using the saved numpy data and dictionary.
                     """
 
+                    NUM_FEATURS_IN_INPUT = 124
+                    NUM_FEATURES_IN_TARGET = 128
+                    NUMGRIDCOLS = 384
+                    NUMTIMESTEPS = 26280
+
                     this_self.input_tensors = None
                     this_self.target_tensors = None
 
                     if this_self.latlontime_dict is None:
                         warnings.warn("No latlontime_dict provided. Assuming that the data has temporal ordering with the same interval between examples.")
+                        warnings.warn("Assuming that horizontal size is the same for all examples and numpy array has first dimension collapsed from 21600xtimes")
 
                         if this_self.npy_input is not None:
-                            this_self.input_tensors = [this_self.outer_self.torch.tensor(this_self.npy_input[i:i + this_self.length_of_trajectories]) for i in range(0, len(this_self.npy_input), this_self.length_of_trajectories)]
+                            
+                            # Resahpe so that first dimension is time
+                            npy_input_time_first = this_self.npy_input.reshape(NUMTIMESTEPS, NUMGRIDCOLS, NUM_FEATURS_IN_INPUT)
+
+                            this_self.input_tensors = [this_self.outer_self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first), this_self.length_of_trajectories)]
                         
                         if this_self.npy_target is not None:
-                            this_self.target_tensors = [this_self.outer_self.torch.tensor(this_self.npy_target[i:i + this_self.length_of_trajectories]) for i in range(0, len(this_self.npy_target), this_self.length_of_trajectories)]
+
+                            # Reshape so that first dimension is time
+                            npy_input_time_first = this_self.npy_target.reshape(NUMTIMESTEPS, NUMGRIDCOLS, NUM_FEATURES_IN_TARGET)
+
+                            this_self.target_tensors = [this_self.outer_self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first), this_self.length_of_trajectories)]
                     
                     else:
                         raise NotImplementedError("latlontime_dict is not implemented yet.")
