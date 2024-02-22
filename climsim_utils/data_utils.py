@@ -1434,14 +1434,19 @@ class data_utils:
             if dataset_name != "low_res_from_paper":
                 raise NotImplementedError("Only low_res_from_paper dataset is implemented for numpy data.")
 
+            array_for_input_train = self.input_train_npy
+            array_for_target_train = self.target_train_npy
+            array_for_input_val = self.input_val_npy
+            array_for_target_val = self.target_val_npy
+
             if normalize:
                 self.calculate_normalization_accross_train_and_val_npy()
 
-                self.input_train_npy = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
-                self.target_train_npy = 2*(self.target_train_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+                array_for_input_train = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
+                array_for_target_train = 2*(self.target_train_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
 
-                self.input_val_npy = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
-                self.target_val_npy = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+                array_for_input_val = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
+                array_for_target_val = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
 
             class TrajectoryDataset(torch.utils.data.Dataset):
                 def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
@@ -1538,9 +1543,9 @@ class data_utils:
                         return this_self.target_tensors[idx]
     
             if data_split == "train":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_train_npy, npy_target=self.target_train_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_train, npy_target=array_for_target_train)
             elif data_split == "val":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_val_npy, npy_target=self.target_val_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_val, npy_target=array_for_target_val)
             elif data_split == "scoring":
                 return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_scoring_npy, npy_target=self.target_scoring_npy)
             elif data_split == "test":
@@ -1607,7 +1612,7 @@ class data_utils:
 
             return IterableTrajectoryDataset(self)
 
-    def calculate_normalization_accross_train_and_val_npy(self) -> None:
+    def calculate_normalization_accross_train_and_val_npy(self, verbose: bool = False) -> None:
         """
         This function calculates the normalisation parameters for the input and target data.
         """
@@ -1619,17 +1624,19 @@ class data_utils:
         self.input_max_npy = np.max(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
         self.input_min_npy = np.min(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
 
-        print(f"Input mean: {self.input_mean_npy}")
-        print(f"Input max: {self.input_max_npy}")
-        print(f"Input min: {self.input_min_npy}")
+        if verbose:
+            print(f"Input mean: {self.input_mean_npy}")
+            print(f"Input max: {self.input_max_npy}")
+            print(f"Input min: {self.input_min_npy}")
 
         self.target_mean_npy = np.mean(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
         self.target_max_npy = np.max(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
         self.target_min_npy = np.min(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
         
-        print(f"Target mean: {self.target_mean_npy}")
-        print(f"Target max: {self.target_max_npy}")
-        print(f"Target min: {self.target_min_npy}")
+        if verbose:
+            print(f"Target mean: {self.target_mean_npy}")
+            print(f"Target max: {self.target_max_npy}")
+            print(f"Target min: {self.target_min_npy}")
 
     @staticmethod
     def reshape_input_for_cnn(npy_input, save_path = ''):
