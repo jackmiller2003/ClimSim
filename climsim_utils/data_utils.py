@@ -1440,7 +1440,11 @@ class data_utils:
             array_for_target_val = self.target_val_npy
 
             if normalize:
-                self.calculate_normalization_accross_train_and_val_npy()
+
+                vars_initialised = (self.input_mean_npy is not None) and (self.input_max_npy is not None) and (self.input_min_npy is not None) and (self.target_mean_npy is not None) and (self.target_max_npy is not None) and (self.target_min_npy is not None)
+
+                if not vars_initialised:
+                    self.calculate_normalization_accross_train_and_val_npy()
 
                 array_for_input_train = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
                 array_for_target_train = 2*(self.target_train_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
