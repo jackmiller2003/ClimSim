@@ -349,6 +349,11 @@ class data_utils:
         self.target_max_npy = None
         self.target_min_npy = None
 
+        self.array_for_input_train_normalized = None
+        self.array_for_target_train_normalized = None
+        self.array_for_input_val_normalized = None
+        self.array_for_target_val_normalized = None
+
         self.train_latlontime_dict = None
         self.val_latlontime_dict = None
         self.scoring_latlontime_dict = None
@@ -1448,11 +1453,20 @@ class data_utils:
                     
                     self.calculate_normalization_accross_train_and_val_npy()
 
-                array_for_input_train = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
-                array_for_target_train = 2*(self.target_train_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+                normalized_arrays_available = (self.array_for_input_train_normalized is not None) and (self.array_for_target_train_normalized is not None) and (self.array_for_input_val_normalized is not None) and (self.array_for_target_val_normalized is not None)
 
-                array_for_input_val = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
-                array_for_target_val = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+                if not normalized_arrays_available:
+
+                    self.array_for_input_train_normalized = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
+                    self.array_for_target_train_normalized = 2*(self.target_train_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+
+                    self.array_for_input_val_normalized = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
+                    self.array_for_target_val_normalized = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+
+                array_for_input_train = self.array_for_input_train_normalized
+                array_for_target_train = self.array_for_target_train_normalized
+                array_for_input_val = self.array_for_input_val_normalized
+                array_for_target_val = self.array_for_target_val_normalized
 
                 print(f"Finished normalisation in {dt.now() - norm_start}")
 
