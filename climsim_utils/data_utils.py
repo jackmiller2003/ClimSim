@@ -1443,13 +1443,13 @@ class data_utils:
 
             if normalize:
 
+                norm_start = dt.now()
+
                 print(f"Starting normalisation at {dt.now()}")
 
                 vars_initialised = (self.input_mean_npy is not None) and (self.input_max_npy is not None) and (self.input_min_npy is not None) and (self.target_mean_npy is not None) and (self.target_max_npy is not None) and (self.target_min_npy is not None)
 
                 if not vars_initialised:
-                    
-                    norm_start = dt.now()
                     
                     self.calculate_normalization_accross_train_and_val_npy()
 
