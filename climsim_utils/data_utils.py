@@ -1437,9 +1437,14 @@ class data_utils:
 
             if normalize:
 
+                print(f"Starting normalisation at {datetime.now()}")
+
                 vars_initialised = (self.input_mean_npy is not None) and (self.input_max_npy is not None) and (self.input_min_npy is not None) and (self.target_mean_npy is not None) and (self.target_max_npy is not None) and (self.target_min_npy is not None)
 
                 if not vars_initialised:
+                    
+                    norm_start = datetime.now()
+                    
                     self.calculate_normalization_accross_train_and_val_npy()
 
                 array_for_input_train = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
@@ -1447,6 +1452,8 @@ class data_utils:
 
                 array_for_input_val = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
                 array_for_target_val = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+
+                print(f"Finished normalisation in {datetime.now() - norm_start}")
 
             class TrajectoryDataset(self.torch.utils.data.Dataset):
                 def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
@@ -1477,6 +1484,10 @@ class data_utils:
                     """
                     Constructs the dataset by finding tarjectories of the certain length using the saved numpy data and dictionary.
                     """
+
+                    start_datasetup = datetime.now()
+
+                    print(f"Starting datasetup at {datetime.now()}")
 
                     NUM_FEATURS_IN_INPUT = 124
                     NUM_FEATURES_IN_TARGET = 128
@@ -1533,6 +1544,8 @@ class data_utils:
                     
                     else:
                         raise NotImplementedError("latlontime_dict is not implemented yet.")
+
+                    print(f"Finished datasetup in {datetime.now() - start_datasetup}")
                 
                 def __getitem__(this_self, idx):
                     if this_self.input_needed and this_self.target_needed:
