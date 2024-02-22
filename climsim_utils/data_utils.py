@@ -341,6 +341,13 @@ class data_utils:
         self.input_test_npy = None
         self.target_test_npy = None
 
+        self.input_mean_npy = None
+        self.input_max_npy = None
+        self.input_min_npy = None
+        self.target_mean_npy = None
+        self.target_max_npy = None
+        self.target_min_npy = None
+
         self.train_latlontime_dict = None
         self.val_latlontime_dict = None
         self.scoring_latlontime_dict = None
@@ -1375,7 +1382,11 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
-    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
+    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, normalize: bool = True, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
+        """
+        Note: has the offsite effect of changing _npy variables if they get normalised. TODO: this is bad.
+        """
+        
         assert self.ml_backend == 'pytorch', 'This method is only available for pytorch backend.'
         assert data_split in ['train', 'val', 'scoring', 'test'], 'Provided data_split is not valid. Available options are train, val, scoring, and test.'
 
@@ -1419,9 +1430,18 @@ class data_utils:
 
         # If numpy data is available, we will default to using that
         if (not prefer_iterable) and requisite_numpy_data_exists:
-            
+
             if dataset_name != "low_res_from_paper":
                 raise NotImplementedError("Only low_res_from_paper dataset is implemented for numpy data.")
+
+            if normalize:
+                self.calculate_normalization_accross_train_and_val_npy()
+
+                self.input_train_npy = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
+                self.target_train_npy = 2*(self.target_train_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+
+                self.input_val_npy = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
+                self.target_val_npy = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
 
             class TrajectoryDataset(torch.utils.data.Dataset):
                 def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
@@ -1587,7 +1607,7 @@ class data_utils:
 
             return IterableTrajectoryDataset(self)
 
-    def calculate_normalisation_accross_train_and_val_npy(self) -> None:
+    def calculate_normalization_accross_train_and_val_npy(self) -> None:
         """
         This function calculates the normalisation parameters for the input and target data.
         """
