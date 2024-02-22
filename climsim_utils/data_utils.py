@@ -538,11 +538,9 @@ class data_utils:
             )
 
         elif self.ml_backend == "pytorch":
-            import torch
-
             if self.successful_backend_import:
 
-                class IterableTorchDataset(torch.utils.data.IterableDataset):
+                class IterableTorchDataset(self.torch.utils.data.IterableDataset):
                     def __init__(this_self, data_generator, output_types, output_shapes):
                         this_self.data_generator = data_generator
                         this_self.output_types = output_types
@@ -551,10 +549,10 @@ class data_utils:
                     def __iter__(this_self):
                         for item in this_self.data_generator:
 
-                            input_array = torch.tensor(
+                            input_array = self.torch.tensor(
                                 item[0], dtype=this_self.output_types[0]
                             )
-                            target_array = torch.tensor(
+                            target_array = self.torch.tensor(
                                 item[1], dtype=this_self.output_types[1]
                             )
 
@@ -583,7 +581,7 @@ class data_utils:
 
                 dataset = IterableTorchDataset(
                     gen(),
-                    (torch.float64, torch.float64),
+                    (self.torch.float64, self.torch.float64),
                     ((None, self.input_feature_len), (None, self.target_feature_len)),
                 )
 
@@ -1390,8 +1388,6 @@ class data_utils:
         assert self.ml_backend == 'pytorch', 'This method is only available for pytorch backend.'
         assert data_split in ['train', 'val', 'scoring', 'test'], 'Provided data_split is not valid. Available options are train, val, scoring, and test.'
 
-        import torch
-
         input_needed = "input" in included_tensor_list
         target_needed = "target" in included_tensor_list
 
@@ -1452,7 +1448,7 @@ class data_utils:
                 array_for_input_val = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
                 array_for_target_val = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
 
-            class TrajectoryDataset(torch.utils.data.Dataset):
+            class TrajectoryDataset(self.torch.utils.data.Dataset):
                 def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
                     super().__init__()
                     this_self.outer_self = outer_self
@@ -1517,7 +1513,7 @@ class data_utils:
                             else:
                                 npy_input_time_first = this_self.npy_input.reshape(number_of_timesteps, NUMGRIDCOLS, feature_length)
 
-                            this_self.input_tensors = [torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
+                            this_self.input_tensors = [self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
                         
                         if this_self.npy_target is not None:
 
@@ -1533,7 +1529,7 @@ class data_utils:
                             else:
                                 npy_target_time_first = this_self.npy_target.reshape(number_of_timesteps, NUMGRIDCOLS, feature_length)
 
-                            this_self.target_tensors = [torch.tensor(npy_target_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_target_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
+                            this_self.target_tensors = [self.torch.tensor(npy_target_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_target_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
                     
                     else:
                         raise NotImplementedError("latlontime_dict is not implemented yet.")
@@ -1556,7 +1552,7 @@ class data_utils:
                 return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_test_npy, npy_target=self.target_test_npy)
 
         else:
-            class IterableTrajectoryDataset(torch.utils.data.IterableDataset):
+            class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
                 def __init__(this_self, outer_self, data_split: DataSplit, included_tensor_list: IncludedTensors):
                     super().__init__()
                     this_self.outer_self = outer_self
@@ -1592,9 +1588,9 @@ class data_utils:
 
                         if previous_time + SECONDS_BETWEEN_FILES == unix_time_of_file or reset_counting:
                             if input_included:
-                                ds_input_tensor = torch.tensor(ds_input.values)
+                                ds_input_tensor = self.torch.tensor(ds_input.values)
                             if target_included:
-                                ds_target_tensor = torch.tensor(ds_target.values)
+                                ds_target_tensor = self.torch.tensor(ds_target.values)
 
                             if input_included and target_included:
                                 intermediate_list.append((ds_input_tensor, ds_target_tensor))
