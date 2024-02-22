@@ -1587,6 +1587,30 @@ class data_utils:
 
             return IterableTrajectoryDataset(self)
 
+    def calculate_normalisation_accross_train_and_val_npy(self) -> None:
+        """
+        This function calculates the normalisation parameters for the input and target data.
+        """
+        
+        assert self.input_train_npy is not None and self.input_val_npy is not None, "Both input_train_npy and input_val_npy must be available to calculate normalisation parameters."
+        assert self.target_train_npy is not None and self.target_val_npy is not None, "Both target_train_npy and target_val_npy must be available to calculate normalisation parameters."
+
+        self.input_mean_npy = np.mean(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
+        self.input_max_npy = np.max(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
+        self.input_min_npy = np.min(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
+
+        print(f"Input mean: {self.input_mean_npy}")
+        print(f"Input max: {self.input_max_npy}")
+        print(f"Input min: {self.input_min_npy}")
+
+        self.target_mean_npy = np.mean(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
+        self.target_max_npy = np.max(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
+        self.target_min_npy = np.min(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
+        
+        print(f"Target mean: {self.target_mean_npy}")
+        print(f"Target max: {self.target_max_npy}")
+        print(f"Target min: {self.target_min_npy}")
+
     @staticmethod
     def reshape_input_for_cnn(npy_input, save_path = ''):
         '''
