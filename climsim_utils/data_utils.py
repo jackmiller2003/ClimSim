@@ -1539,7 +1539,7 @@ class data_utils:
                             else:
                                 npy_input_time_first = this_self.npy_input.reshape(number_of_timesteps, NUMGRIDCOLS, feature_length)
 
-                            this_self.input_tensors = [self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
+                            this_self.input_tensors = [self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first)-this_self.length_of_trajectories)]
                         
                         if this_self.npy_target is not None:
 
