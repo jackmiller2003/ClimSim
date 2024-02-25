@@ -1401,7 +1401,7 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
-    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, normalize: bool = True, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
+    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, length_of_train_set: int, length_of_val_set: int, normalize: bool = True, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
         """
         Note: has the offsite effect of changing _npy variables if they get normalised. TODO: this is bad.
         """
@@ -1486,13 +1486,14 @@ class data_utils:
                 print(f"Finished normalisation in {dt.now() - norm_start}")
 
             class TrajectoryDataset(self.torch.utils.data.Dataset):
-                def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
+                def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, length_of_set: int, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
                     super().__init__()
                     this_self.outer_self = outer_self
                     this_self.length_of_trajectories = length_of_trajectories
                     this_self.input_needed = input_needed
                     this_self.target_needed = target_needed
                     this_self.data_split = data_split
+                    this_self.length_of_set = length_of_set
                     this_self.flatten = flatten
                     this_self.subset_of_input_features = subset_of_input_features
                     this_self.subset_of_target_features = subset_of_target_features
@@ -1519,14 +1520,7 @@ class data_utils:
 
                     print(f"Starting datasetup at {dt.now()}")
 
-                    NUMGRIDCOLS = 384   
-
-                    if this_self.data_split == "train":
-                        number_of_timesteps = this_self.npy_input.shape[0]
-                    elif this_self.data_split == "val":
-                        number_of_timesteps = this_self.npy_target.shape[0]
-                    else:
-                        raise NotImplementedError("Only train and val data splits are implemented for numpy data.")
+                    NUMGRIDCOLS = 384
 
                     this_self.input_tensors = None
                     this_self.target_tensors = None
@@ -1545,9 +1539,9 @@ class data_utils:
                                 feature_length = len(this_self.subset_of_input_features)
 
                             if this_self.flatten:
-                                npy_input_time_first = this_self.npy_input.reshape(number_of_timesteps, NUMGRIDCOLS*feature_length)
+                                npy_input_time_first = this_self.npy_input.reshape(this_self.length_of_set, NUMGRIDCOLS*feature_length)
                             else:
-                                npy_input_time_first = this_self.npy_input.reshape(number_of_timesteps, NUMGRIDCOLS, feature_length)
+                                npy_input_time_first = this_self.npy_input.reshape(this_self.length_of_set, NUMGRIDCOLS, feature_length)
 
                             this_self.input_tensors = [self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first)-this_self.length_of_trajectories)]
                         
@@ -1561,9 +1555,9 @@ class data_utils:
                                 feature_length = len(this_self.subset_of_target_features)
 
                             if this_self.flatten:
-                                npy_target_time_first = this_self.npy_target.reshape(number_of_timesteps, NUMGRIDCOLS*feature_length)
+                                npy_target_time_first = this_self.npy_target.reshape(this_self.length_of_set, NUMGRIDCOLS*feature_length)
                             else:
-                                npy_target_time_first = this_self.npy_target.reshape(number_of_timesteps, NUMGRIDCOLS, feature_length)
+                                npy_target_time_first = this_self.npy_target.reshape(this_self.length_of_set, NUMGRIDCOLS, feature_length)
 
                             this_self.target_tensors = [self.torch.tensor(npy_target_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_target_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
                     
@@ -1581,13 +1575,11 @@ class data_utils:
                         return this_self.target_tensors[idx]
     
             if data_split == "train":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_train, npy_target=array_for_target_train)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, length_of_set=length_of_train_set, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_train, npy_target=array_for_target_train)
             elif data_split == "val":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_val, npy_target=array_for_target_val)
-            elif data_split == "scoring":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_scoring_npy, npy_target=self.target_scoring_npy)
-            elif data_split == "test":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=self.input_test_npy, npy_target=self.target_test_npy)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, length_of_set=length_of_train_set, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_val, npy_target=array_for_target_val)
+            else:
+                raise NotImplementedError("Only train and val data splits are implemented for numpy data.")
 
         else:
             class IterableTrajectoryDataset(self.torch.utils.data.IterableDataset):
