@@ -15,6 +15,7 @@ import datetime
 from datetime import datetime as dt
 from pathlib import Path
 import warnings
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 MLBackendType = Literal["tensorflow", "pytorch"]
 DataSplit = Literal["train", "val", "scoring", "test"]
@@ -459,6 +460,9 @@ class data_utils:
             assert self.train_regexps is not None, 'regexps for train is not set.'
             assert self.train_stride_sample is not None, 'stride_sample for train is not set.'
             for regexp in self.train_regexps:
+                glob_str = self.data_path + "*/" + regexp
+                print(f"Glob is: {glob_str}")
+
                 filelist = filelist + glob.glob(self.data_path + "*/" + regexp)
             self.train_filelist = sorted(filelist)[::self.train_stride_sample]
         elif data_split == 'val':
@@ -594,19 +598,30 @@ class data_utils:
                 return dataset
     
     def save_as_npy(self,
-                 data_split, 
-                 save_path = '',
+                 data_split: DataSplit, 
+                 save_path: Path,
                  save_latlontime_dict = False):
         '''
         This function saves the training data as a .npy file.
         '''
-        data_loader = self.load_ncdata_with_generator(data_split)
-        npy_iterator = list(data_loader.as_numpy_iterator())
-        npy_input = np.concatenate([npy_iterator[x][0] for x in range(len(npy_iterator))])
-        npy_target = np.concatenate([npy_iterator[x][1] for x in range(len(npy_iterator))])
-        with open(save_path + data_split + '_input.npy', 'wb') as f:
+
+        filelist = self.get_filelist(data_split)
+
+        print(f"Converting iterator to list.")
+
+        list_of_npy_and_time = [self.process_file(file) for file in tqdm(filelist, desc='Converting to list')]
+
+        print(f"Length of list: {len(list_of_npy_and_time)}")
+
+        # Order list by time
+        list_of_npy_and_time.sort(key=lambda x: x[2])
+
+        npy_input = np.concatenate([x[0] for x in list_of_npy_and_time])
+        npy_target = np.concatenate([x[1] for x in list_of_npy_and_time])
+
+        with open(save_path / f"{data_split}_input.npy", 'wb') as f:
             np.save(f, np.float32(npy_input))
-        with open(save_path + data_split + '_target.npy', 'wb') as f:
+        with open(save_path / f"{data_split}_target.npy", 'wb') as f:
             np.save(f, np.float32(npy_target))
         if data_split == 'train':
             data_files = self.train_filelist
@@ -624,7 +639,7 @@ class data_utils:
                 for i in range(self.num_latlon):
                     repeat_dates.append(date)
             latlontime = {i: [(self.grid_info['lat'].values[i%self.num_latlon], self.grid_info['lon'].values[i%self.num_latlon]), repeat_dates[i]] for i in range(npy_input.shape[0])}
-            with open(save_path + data_split + '_indextolatlontime.pkl', 'wb') as f:
+            with open(save_path / f"{data_split}_indextolatlontime.pkl", 'wb') as f:
                 pickle.dump(latlontime, f)
     
     def load_npy_data(self, load_path: Path) -> None:
@@ -1504,17 +1519,12 @@ class data_utils:
 
                     print(f"Starting datasetup at {dt.now()}")
 
-                    NUM_FEATURS_IN_INPUT = 124
-                    NUM_FEATURES_IN_TARGET = 128
-                    NUMGRIDCOLS = 384
-                    
-                    NUMTIMESTEPS_IN_TRAINING = 26280
-                    NUMTIMESTEPS_IN_VALIDATION = 3755     
+                    NUMGRIDCOLS = 384   
 
                     if this_self.data_split == "train":
-                        number_of_timesteps = NUMTIMESTEPS_IN_TRAINING
+                        number_of_timesteps = this_self.npy_input.shape[0]
                     elif this_self.data_split == "val":
-                        number_of_timesteps = NUMTIMESTEPS_IN_VALIDATION
+                        number_of_timesteps = this_self.npy_target.shape[0]
                     else:
                         raise NotImplementedError("Only train and val data splits are implemented for numpy data.")
 
@@ -1527,7 +1537,7 @@ class data_utils:
 
                         if this_self.npy_input is not None:
                             
-                            feature_length = NUM_FEATURS_IN_INPUT
+                            feature_length = this_self.outer_self.input_feature_len
 
                             # Extract subset of features if necessary
                             if this_self.subset_of_input_features is not None:
@@ -1543,7 +1553,7 @@ class data_utils:
                         
                         if this_self.npy_target is not None:
 
-                            feature_length = NUM_FEATURES_IN_TARGET
+                            feature_length = this_self.outer_self.target_feature_len
 
                             # Extract subset of features if necessary
                             if this_self.subset_of_target_features is not None:
@@ -1665,6 +1675,30 @@ class data_utils:
             print(f"Target mean: {self.target_mean_npy}")
             print(f"Target max: {self.target_max_npy}")
             print(f"Target min: {self.target_min_npy}")
+
+    def process_file(self, file):
+        # Assuming 'self' context is passed or available globally
+        # read inputs
+        ds_input = self.get_input(file)
+        # read targets
+        ds_target = self.get_target(file)
+
+        time_of_file = self.convert_file_to_unix_time(file)
+        
+        # normalization, scaling
+        if self.normalize:
+            ds_input = (ds_input - self.input_mean) / (self.input_max - self.input_min)
+            ds_target = ds_target * self.output_scale
+        else:
+            ds_input = ds_input.drop(['lat', 'lon'])
+
+        # stack and prepare data structures as before
+        ds_input = ds_input.stack({'batch': {'ncol'}})
+        ds_input = ds_input.to_stacked_array('mlvar', sample_dims=['batch'], name='mli')
+        ds_target = ds_target.stack({'batch': {'ncol'}})
+        ds_target = ds_target.to_stacked_array('mlvar', sample_dims=['batch'], name='mlo')
+        
+        return (np.array(ds_input.values), np.array(ds_target.values), int(time_of_file))
 
     @staticmethod
     def reshape_input_for_cnn(npy_input, save_path = ''):
