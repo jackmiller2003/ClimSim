@@ -1472,11 +1472,11 @@ class data_utils:
 
                 if not normalized_arrays_available:
 
-                    self.array_for_input_train_normalized = 2*(self.input_train_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
-                    self.array_for_target_train_normalized = 2*(self.target_train_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+                    self.array_for_input_train_normalized = (self.input_train_npy - self.input_mean_npy) / (self.input_std_npy)
+                    self.array_for_target_train_normalized = (self.target_train_npy - self.target_mean_npy) / (self.target_std_npy)
 
-                    self.array_for_input_val_normalized = 2*(self.input_val_npy - self.input_mean_npy) / (self.input_max_npy - self.input_min_npy)
-                    self.array_for_target_val_normalized = 2*(self.target_val_npy - self.target_mean_npy) / (self.target_max_npy - self.target_min_npy)
+                    self.array_for_input_val_normalized = (self.input_val_npy - self.input_mean_npy) / (self.input_std_npy)
+                    self.array_for_target_val_normalized = (self.target_val_npy - self.target_mean_npy) / (self.target_std_npy)
 
                 array_for_input_train = self.array_for_input_train_normalized
                 array_for_target_train = self.array_for_target_train_normalized
@@ -1486,14 +1486,13 @@ class data_utils:
                 print(f"Finished normalisation in {dt.now() - norm_start}")
 
             class TrajectoryDataset(self.torch.utils.data.Dataset):
-                def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, length_of_set: int, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
+                def __init__(this_self, outer_self, length_of_trajectories: int, input_needed: bool, target_needed: bool, data_split: DataSplit, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, npy_input: np.ndarray = None, npy_target: np.ndarray = None, latlontime_dict: dict = None):
                     super().__init__()
                     this_self.outer_self = outer_self
                     this_self.length_of_trajectories = length_of_trajectories
                     this_self.input_needed = input_needed
                     this_self.target_needed = target_needed
                     this_self.data_split = data_split
-                    this_self.length_of_set = length_of_set
                     this_self.flatten = flatten
                     this_self.subset_of_input_features = subset_of_input_features
                     this_self.subset_of_target_features = subset_of_target_features
@@ -1539,9 +1538,9 @@ class data_utils:
                                 feature_length = len(this_self.subset_of_input_features)
 
                             if this_self.flatten:
-                                npy_input_time_first = this_self.npy_input.reshape(this_self.length_of_set, NUMGRIDCOLS*feature_length)
+                                npy_input_time_first = this_self.npy_input.reshape(-1, NUMGRIDCOLS*feature_length)
                             else:
-                                npy_input_time_first = this_self.npy_input.reshape(this_self.length_of_set, NUMGRIDCOLS, feature_length)
+                                npy_input_time_first = this_self.npy_input.reshape(-1, NUMGRIDCOLS, feature_length)
 
                             this_self.input_tensors = [self.torch.tensor(npy_input_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_input_time_first)-this_self.length_of_trajectories)]
                         
@@ -1555,11 +1554,11 @@ class data_utils:
                                 feature_length = len(this_self.subset_of_target_features)
 
                             if this_self.flatten:
-                                npy_target_time_first = this_self.npy_target.reshape(this_self.length_of_set, NUMGRIDCOLS*feature_length)
+                                npy_target_time_first = this_self.npy_target.reshape(-1, NUMGRIDCOLS*feature_length)
                             else:
-                                npy_target_time_first = this_self.npy_target.reshape(this_self.length_of_set, NUMGRIDCOLS, feature_length)
+                                npy_target_time_first = this_self.npy_target.reshape(-1, NUMGRIDCOLS, feature_length)
 
-                            this_self.target_tensors = [self.torch.tensor(npy_target_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_target_time_first)-this_self.length_of_trajectories, this_self.length_of_trajectories)]
+                            this_self.target_tensors = [self.torch.tensor(npy_target_time_first[i:i + this_self.length_of_trajectories]) for i in range(0, len(npy_target_time_first)-this_self.length_of_trajectories)]
                     
                     else:
                         raise NotImplementedError("latlontime_dict is not implemented yet.")
@@ -1651,22 +1650,18 @@ class data_utils:
         assert self.target_train_npy is not None and self.target_val_npy is not None, "Both target_train_npy and target_val_npy must be available to calculate normalisation parameters."
 
         self.input_mean_npy = np.mean(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
-        self.input_max_npy = np.max(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
-        self.input_min_npy = np.min(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
+        self.input_std_npy = np.std(np.concatenate([self.input_train_npy, self.input_val_npy], axis=0), axis=0)
 
         if verbose:
             print(f"Input mean: {self.input_mean_npy}")
-            print(f"Input max: {self.input_max_npy}")
-            print(f"Input min: {self.input_min_npy}")
+            print(f"Input std: {self.input_max_npy}")
 
         self.target_mean_npy = np.mean(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
-        self.target_max_npy = np.max(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
-        self.target_min_npy = np.min(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
+        self.target_std_npy = np.max(np.concatenate([self.target_train_npy, self.target_val_npy], axis=0), axis=0)
         
         if verbose:
             print(f"Target mean: {self.target_mean_npy}")
-            print(f"Target max: {self.target_max_npy}")
-            print(f"Target min: {self.target_min_npy}")
+            print(f"Target std: {self.target_max_npy}")
 
     def process_file(self, file):
         # Assuming 'self' context is passed or available globally
