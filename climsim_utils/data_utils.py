@@ -1401,7 +1401,7 @@ class data_utils:
         plt.show()
         plt.savefig(save_path + 'press_lat_diff_models.png', bbox_inches='tight', pad_inches=0.1 , dpi = 300)
     
-    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, length_of_train_set: int, length_of_val_set: int, normalize: bool = True, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
+    def get_torch_dataset_of_trajectories_in_time(self, length_of_trajectories: int, data_split: DataSplit, length_of_set: int, normalize: bool = True, flatten: bool = True, subset_of_input_features: list = None, subset_of_target_features: list = None, dataset_name: DatasetName = "low_res_from_paper", included_tensor_list: IncludedTensors = ["input", "target"], prefer_iterable=False, progress_bar=False) -> object:
         """
         Note: has the offsite effect of changing _npy variables if they get normalised. TODO: this is bad.
         """
@@ -1575,9 +1575,9 @@ class data_utils:
                         return this_self.target_tensors[idx]
     
             if data_split == "train":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, length_of_set=length_of_train_set, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_train, npy_target=array_for_target_train)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, length_of_set=length_of_set, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_train, npy_target=array_for_target_train)
             elif data_split == "val":
-                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, length_of_set=length_of_train_set, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_val, npy_target=array_for_target_val)
+                return TrajectoryDataset(self, length_of_trajectories=length_of_trajectories, input_needed=input_needed, target_needed=target_needed, data_split=data_split, length_of_set=length_of_set, flatten=flatten, subset_of_input_features=subset_of_input_features, subset_of_target_features=subset_of_target_features, npy_input=array_for_input_val, npy_target=array_for_target_val)
             else:
                 raise NotImplementedError("Only train and val data splits are implemented for numpy data.")
 
